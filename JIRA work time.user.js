@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       JIRA work time
 // @namespace  https://github.com/JonathanGawrych/jira-non-working-hours
-// @version    0.2.1
+// @version    0.3.0
 // @description  Mark Non-Working Hours as such in jira's burndown chart
 // @match      https://jira.mtc.byu.edu/jira/secure/RapidBoard.jspa*
 // @copyright  2014+, Jonathan Gawrych
@@ -9,6 +9,7 @@
 
 var MILLI_PER_DAY = 1000 * 60 * 60 * 24;
 var MILLI_PER_MIN = 1000 * 60;
+var DIAGONAL_SERIES = true;
 
 var employeeHours = [
 	{}, // sun
@@ -231,6 +232,98 @@ GH.BurndownChartModel.calculateTimePerUnit = function(rateDefinitions, totalTask
 	return elapseWeighted / totalTaskHours;
 };
 
+if (DIAGONAL_SERIES) {
+	GH.BurndownChartModel.calculateSeries = function() {
+
+		function calculateSeriesData(type, eventList, flatLinesEnds) {
+			eventList[type] = eventList[type] || [];
+
+			var seriesItem = [];
+			var lastFlatPoint = 0;
+			for (var i = 0; i < timeline.length; i++) {
+				while (lastFlatPoint < flatLinesEnds.length && flatLinesEnds[lastFlatPoint][0] < timeline[i].time) {
+					seriesItem.push([
+						flatLinesEnds[lastFlatPoint][0],
+						seriesItem[seriesItem.length-1][1]
+					]);
+					eventList[type].push({});
+					lastFlatPoint++;
+				}
+
+				seriesItem.push([
+					timeline[i].time,
+					timeline[i].values[type]
+				]);
+				eventList[type].push(timeline[i]);
+			}
+
+			if (!timelineData.completeTime) {
+				seriesItem.push([
+					Math.max(timelineData.startTime, timelineData.now),
+					timeline[timeline.length-1].values[type]
+				]);
+			}
+
+			return seriesItem;
+		}
+		
+		var timelineData = GH.BurndownChartModel.timelineData;
+		var timeline = timelineData.timeline;
+
+		if (timeline.length === 0)
+			return;
+
+		var series = [];
+		var YAxis = 0;
+		var eventList = {};
+		
+		var gridLine = GH.BurndownChartModel.calculateGuidelineSeries({
+			startTime: timelineData.startTime,
+			startValue: timeline[0].values.estimate,
+			endTime: timelineData.endTime
+		});
+
+		series.push(gridLine);
+
+		var flatLinesEnds = gridLine.data.slice();
+		for (var i = flatLinesEnds.length - 1; i > 0; i--) {
+			if (flatLinesEnds[i][1] !== flatLinesEnds[i-1][1]) {
+				flatLinesEnds.splice(i, 1);
+			}
+		}
+
+		if (GH.BurndownChartModel.isTimeTracking()) {
+			YAxis = Math.max(YAxis, timelineData.maxValues.timeSpent || 0);
+
+			series.push({id: "timeSpent",
+				data: calculateSeriesData("timeSpent", eventList, flatLinesEnds),
+				color: "#14892c",
+				label: "Time Spent"
+			});
+			
+		}
+
+		YAxis = Math.max(YAxis, timelineData.maxValues.estimate || 0);
+		series.push({id: "estimate",
+			data: calculateSeriesData("estimate", eventList, flatLinesEnds),
+			color: "#d04437",
+			label: "Remaining Values"
+		});
+
+		
+		series.push({id: "markings",
+			color: GH.BurndownChartView.wallboardMode ? GH.ChartColors.nonWorkingDaysWallboard : GH.ChartColors.nonWorkingDays,
+			data: [],
+			label: "Non-Working Days"
+		});
+
+
+		GH.BurndownChartModel.calculateYAxis(YAxis);
+		GH.BurndownChartModel.series = series;
+		GH.BurndownChartModel.seriesData = eventList;
+
+	};
+}
 
 function byProperty(prop) {
 	return function (obj) {
