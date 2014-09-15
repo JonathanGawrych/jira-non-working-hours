@@ -1,15 +1,11 @@
 // ==UserScript==
 // @name       JIRA work time
 // @namespace  https://github.com/JonathanGawrych/jira-non-working-hours
-// @version    0.2.0
+// @version    0.2.1
 // @description  Mark Non-Working Hours as such in jira's burndown chart
 // @match      https://jira.mtc.byu.edu/jira/secure/RapidBoard.jspa*
 // @copyright  2014+, Jonathan Gawrych
 // ==/UserScript==
-
-
-// limit to the query param
-if (/\bchart=burndownChart\b/.test(location.search)) {
 
 var MILLI_PER_DAY = 1000 * 60 * 60 * 24;
 var MILLI_PER_MIN = 1000 * 60;
@@ -110,136 +106,130 @@ var compiledEmployeeHours = employeeHours.map(function day(day) {
     return clocks;
 });
 
-// wait till data is loaded and run 100ms after that
-(function isReady() {
-    if (GH && GH.BurndownChartModel && GH.BurndownChartModel.rawData && GH.BurndownChartModel.rawData.workRateData && GH.BurndownChartModel.rawData.workRateData.rates) {
-        setTimeout(run, 100);
-    } else {
-        setTimeout(isReady, 100);
-    }
-})();
-
-function run() {
-    injectVariableRatePatches();
-    
-    // get some variables to work with
-    var start = Math.min.apply(Math, GH.BurndownChartModel.rawData.workRateData.rates.map(byProperty('start')));
-    var end = Math.max.apply(Math, GH.BurndownChartModel.rawData.workRateData.rates.map(byProperty('end')));
-    var startDate = atMidnight(start, false);
-    var endDate = atMidnight(end, true);
-    var numOfDays = Math.round((startDate - endDate) / MILLI_PER_DAY);
-
-    var intervals = [];
-
-    // create intervals by moving though the day, then jumping to the next one when out of clock
-    var motion = startDate, clock = 0, iter = motion.getDay() % compiledEmployeeHours.length;
-    while (motion < endDate) {
+// hook into their function
+GH.BurndownChartModel.setRawData = (function setRawDataPatcher(oldFn) {
+    return function setRawData(data) {
+        if (!data || !data.workRateData || !data.workRateData.rates)
+            return oldFn.apply(this, [data]);
         
-        if (clock === compiledEmployeeHours[iter % compiledEmployeeHours.length].order.length) {
-            clock = 0;
-            var startTime = motion.getTime();
-            motion.setHours(24, 0, 0, 0);
-            intervals.push({
-                start: startTime - motion.getTimezoneOffset() * MILLI_PER_MIN,
-                end: motion.getTime() - motion.getTimezoneOffset() * MILLI_PER_MIN,
-                rate: 0
-            });
-            iter++;
-        } else {
-
-            var startTime = motion.getTime();
-            var day = compiledEmployeeHours[iter % compiledEmployeeHours.length];
-            var hours = +day.order[clock];
-            var minutes = hours%1 * 60;
-            var seconds = minutes%1 * 60;
-            var millis = seconds%1 * 1000;
-            var rate = clock && day[day.order[clock-1]];
-    
-            motion.setHours(Math.floor(hours),
-                            Math.floor(minutes),
-                            Math.floor(seconds),
-                            Math.floor(millis));
-    
-            intervals.push({
-                start: startTime - motion.getTimezoneOffset() * MILLI_PER_MIN,
-                end: motion.getTime() - motion.getTimezoneOffset() * MILLI_PER_MIN,
-                rate: rate
-            });
-
-            clock++;
-        }
-    }
-    
-    // limit the rates around the start and end times
-    GH.BurndownChartModel.rawData.workRateData.rates = intervals.filter(function (interval) {
-        return start < interval.end || interval.start < end;
-    }).map(function (interval) {
-        return {
-            start: Math.max(start, interval.start),
-            end: Math.min(end, interval.end),
-            rate: interval.rate
-        };
-    })
-    
-    // reprocess the chart
-    GH.BurndownReportChartController.processChartData(GH.BurndownChartModel.rawData);
-}
-
-function injectVariableRatePatches() {
-    // these function are exactly like the original except a working day is
-    // now considered to be a rate greater than zero, rather than exactly one.
-    // I also deminified it, removed unneeded lodash/underscore, and allowed variable rates 
-
-    GH.BurndownRate.limitToWorkingDays = function(days) {
-        return days.filter(function byRate(day) {
-            return day.rate > 0;
-        });
-    };
-
-    GH.BurndownRate.limitToNonWorkingDays = function(days) {
-        return days.filter(function byRate(day) {
-            return !(day.rate > 0);
-        })
-    };
-
-    GH.BurndownChartModel.calculateGuidelineSeries = function(timelineData) {
-        var totalTaskHours = timelineData.startValue;
-
-        var rateDefinitions = GH.BurndownRate.getRateDefinitions();
-
-        var limitedRateDefinitions = GH.BurndownRate.limitToTimeRange(rateDefinitions, timelineData.startTime, timelineData.endTime);
-
-        var timePerUnit = GH.BurndownChartModel.calculateTimePerUnit(limitedRateDefinitions, totalTaskHours);
-
-        var timeHeightMap = [[timelineData.startTime, timelineData.startValue]].concat(limitedRateDefinitions.map(function(rateDefinition) {
-            if (rateDefinition.rate > 0) {
-                var elapse = rateDefinition.start - rateDefinition.end;
-                var elapseWeighted = elapse / timePerUnit * rateDefinition.rate;
-                totalTaskHours -= elapseWeighted
+        // get some variables to work with
+        var start = Math.min.apply(Math, data.workRateData.rates.map(byProperty('start')));
+        var end = Math.max.apply(Math, data.workRateData.rates.map(byProperty('end')));
+        var startDate = atMidnight(start, false);
+        var endDate = atMidnight(end, true);
+        var numOfDays = Math.round((startDate - endDate) / MILLI_PER_DAY);
+        
+        var intervals = [];
+        
+        // create intervals by moving though the day, then jumping to the next one when out of clock
+        var motion = startDate, clock = 0, iter = motion.getDay() % compiledEmployeeHours.length;
+        while (motion < endDate) {
+            
+            if (clock === compiledEmployeeHours[iter % compiledEmployeeHours.length].order.length) {
+                clock = 0;
+                var startTime = motion.getTime();
+                motion.setHours(24, 0, 0, 0);
+                intervals.push({
+                    start: startTime - motion.getTimezoneOffset() * MILLI_PER_MIN,
+                    end: motion.getTime() - motion.getTimezoneOffset() * MILLI_PER_MIN,
+                    rate: 0
+                });
+                iter++;
+            } else {
+                
+                var startTime = motion.getTime();
+                var day = compiledEmployeeHours[iter % compiledEmployeeHours.length];
+                var hours = +day.order[clock];
+                var minutes = hours%1 * 60;
+                var seconds = minutes%1 * 60;
+                var millis = seconds%1 * 1000;
+                var rate = clock && day[day.order[clock-1]];
+                
+                motion.setHours(Math.floor(hours),
+                                Math.floor(minutes),
+                                Math.floor(seconds),
+                                Math.floor(millis));
+                
+                intervals.push({
+                    start: startTime - motion.getTimezoneOffset() * MILLI_PER_MIN,
+                    end: motion.getTime() - motion.getTimezoneOffset() * MILLI_PER_MIN,
+                    rate: rate
+                });
+                
+                clock++;
             }
-            return [Math.min(rateDefinition.end, timelineData.endTime), Math.max(totalTaskHours, 0)];
-        }));
+        }
         
-        timeHeightMap = timeHeightMap.filter(function(G) {
-            return G.length !== 0;
-        });
+        // limit the rates around the start and end times
+        data.workRateData.rates = intervals.filter(function (interval) {
+            return start < interval.end || interval.start < end;
+        }).map(function (interval) {
+            return {
+                start: Math.max(start, interval.start),
+                end: Math.min(end, interval.end),
+                rate: interval.rate
+            };
+        })
         
-        return {
-            id: "guideline",
-            data: timeHeightMap,
-            color: "#999",
-            label: "Guideline"
-        };
-    };
+        // continue with their code
+        return oldFn.apply(this, [data]);
+    }
+})(GH.BurndownChartModel.setRawData);
 
-    GH.BurndownChartModel.calculateTimePerUnit = function(rateDefinitions, totalTaskHours) {
-        var limitedRateDefinitions = GH.BurndownRate.limitToWorkingDays(rateDefinitions);
-        var elapseWeighted = limitedRateDefinitions.reduce(function(total, rate) {
-            return total + ((rate.start - rate.end) * rate.rate);
-        }, 0);
-        return elapseWeighted / totalTaskHours;
+
+// these function are exactly like the original except a working day is
+// now considered to be a rate greater than zero, rather than exactly one.
+// I also deminified it, removed unneeded lodash/underscore, and allowed variable rates 
+                                    
+GH.BurndownRate.limitToWorkingDays = function(days) {
+    return days.filter(function byRate(day) {
+        return day.rate > 0;
+    });
+};
+
+GH.BurndownRate.limitToNonWorkingDays = function(days) {
+    return days.filter(function byRate(day) {
+        return !(day.rate > 0);
+    })
+};
+
+GH.BurndownChartModel.calculateGuidelineSeries = function(timelineData) {
+    var totalTaskHours = timelineData.startValue;
+    
+    var rateDefinitions = GH.BurndownRate.getRateDefinitions();
+    
+    var limitedRateDefinitions = GH.BurndownRate.limitToTimeRange(rateDefinitions, timelineData.startTime, timelineData.endTime);
+    
+    var timePerUnit = GH.BurndownChartModel.calculateTimePerUnit(limitedRateDefinitions, totalTaskHours);
+    
+    var timeHeightMap = [[timelineData.startTime, timelineData.startValue]].concat(limitedRateDefinitions.map(function(rateDefinition) {
+        if (rateDefinition.rate > 0) {
+            var elapse = rateDefinition.start - rateDefinition.end;
+            var elapseWeighted = elapse / timePerUnit * rateDefinition.rate;
+            totalTaskHours -= elapseWeighted
+        }
+        return [Math.min(rateDefinition.end, timelineData.endTime), Math.max(totalTaskHours, 0)];
+    }));
+    
+    timeHeightMap = timeHeightMap.filter(function(G) {
+        return G.length !== 0;
+    });
+    
+    return {
+        id: "guideline",
+        data: timeHeightMap,
+        color: "#999",
+        label: "Guideline"
     };
-}
+};
+
+GH.BurndownChartModel.calculateTimePerUnit = function(rateDefinitions, totalTaskHours) {
+    var limitedRateDefinitions = GH.BurndownRate.limitToWorkingDays(rateDefinitions);
+    var elapseWeighted = limitedRateDefinitions.reduce(function(total, rate) {
+        return total + ((rate.start - rate.end) * rate.rate);
+    }, 0);
+    return elapseWeighted / totalTaskHours;
+};
 
 
 function byProperty(prop) {
@@ -265,9 +255,4 @@ function atMidnight(date, roundUp) {
         midnight.setHours(0, 0, 0, 0);
 
     return midnight;
-}
-
-
-
-// end query param limit
 }
