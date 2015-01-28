@@ -24,7 +24,7 @@ var employeeHours = [
 		Erik: [{clockIn: 11, clockOut: 19}],
 		Nathan: [{clockIn: 11, clockOut: 15}],
 		Teancum: [{clockIn: 9, clockOut: 18}]
-	}, 
+	},
 	{   // wed
 		Jon: [{clockIn: 13, clockOut: 17}],
 		Erik: [{clockIn: 13, clockOut: 19}],
@@ -36,7 +36,7 @@ var employeeHours = [
 		Erik: [{clockIn: 11, clockOut: 19}],
 		Nathan: [{clockIn: 11, clockOut: 17}],
 		Teancum: [{clockIn: 9, clockOut: 18}]
-	}, 
+	},
 	{   // fri
 		Nathan: [{clockIn: 12.5, clockOut: 17}]
 	},
@@ -52,7 +52,7 @@ var employeeHours = [
 		Erik: [{clockIn: 11, clockOut: 19}],
 		Nathan: [{clockIn: 11, clockOut: 15}],
 		Teancum: [{clockIn: 9, clockOut: 18}]
-	}, 
+	},
 	{   // wed
 		Erik: [{clockIn: 14, clockOut: 16}],
 		Nathan: [{clockIn: 14, clockOut: 17}],
@@ -62,7 +62,7 @@ var employeeHours = [
 		Erik: [{clockIn: 11, clockOut: 19}],
 		Nathan: [{clockIn: 11, clockOut: 17}],
 		Teancum: [{clockIn: 9, clockOut: 18}]
-	}, 
+	},
 	{   // fri
 		Nathan: [{clockIn: 12.5, clockOut: 17}]
 	},
@@ -71,11 +71,11 @@ var employeeHours = [
 ];
 
 
-var compiledEmployeeHours = employeeHours.map(function day(day) {
+var compiledEmployeeHours = employeeHours.map(function (day) {
 
 	// organize multiple employee's ins and outs into a map
 	// from time to number of people clocking in
-	clocks = {};
+	var clocks = {};
 	for (var employee in day) {
 		day[employee].forEach(function (punch) {
 			if (!clocks[punch.clockIn])
@@ -170,31 +170,30 @@ GH.BurndownChartModel.setRawData = (function setRawDataPatcher(oldFn) {
 				end: Math.min(end, interval.end),
 				rate: interval.rate
 			};
-		})
+		});
 		
 		// continue with their code
 		return oldFn.apply(this, [data]);
-	}
+	};
 })(GH.BurndownChartModel.setRawData);
-
 
 // these function are exactly like the original except a working day is
 // now considered to be a rate greater than zero, rather than exactly one.
-// I also deminified it, removed unneeded lodash/underscore, and allowed variable rates 
-									
-GH.BurndownRate.limitToWorkingDays = function(days) {
+// I also deminified it, removed unneeded lodash/underscore, and allowed variable rates
+
+GH.BurndownRate.limitToWorkingDays = function (days) {
 	return days.filter(function byRate(day) {
 		return day.rate > 0;
 	});
 };
 
-GH.BurndownRate.limitToNonWorkingDays = function(days) {
+GH.BurndownRate.limitToNonWorkingDays = function (days) {
 	return days.filter(function byRate(day) {
 		return !(day.rate > 0);
-	})
+	});
 };
 
-GH.BurndownChartModel.calculateGuidelineSeries = function(timelineData) {
+GH.BurndownChartModel.calculateGuidelineSeries = function (timelineData) {
 	var totalTaskHours = timelineData.startValue;
 	
 	var rateDefinitions = GH.BurndownRate.getRateDefinitions();
@@ -207,33 +206,33 @@ GH.BurndownChartModel.calculateGuidelineSeries = function(timelineData) {
 		if (rateDefinition.rate > 0) {
 			var elapse = rateDefinition.start - rateDefinition.end;
 			var elapseWeighted = elapse / timePerUnit * rateDefinition.rate;
-			totalTaskHours -= elapseWeighted
+			totalTaskHours -= elapseWeighted;
 		}
 		return [Math.min(rateDefinition.end, timelineData.endTime), Math.max(totalTaskHours, 0)];
 	}));
 	
-	timeHeightMap = timeHeightMap.filter(function(G) {
+	timeHeightMap = timeHeightMap.filter(function (G) {
 		return G.length !== 0;
 	});
 	
 	return {
-		id: "guideline",
+		id: 'guideline',
 		data: timeHeightMap,
-		color: "#999",
-		label: "Guideline"
+		color: '#999',
+		label: 'Guideline'
 	};
 };
 
-GH.BurndownChartModel.calculateTimePerUnit = function(rateDefinitions, totalTaskHours) {
+GH.BurndownChartModel.calculateTimePerUnit = function (rateDefinitions, totalTaskHours) {
 	var limitedRateDefinitions = GH.BurndownRate.limitToWorkingDays(rateDefinitions);
-	var elapseWeighted = limitedRateDefinitions.reduce(function(total, rate) {
+	var elapseWeighted = limitedRateDefinitions.reduce(function (total, rate) {
 		return total + ((rate.start - rate.end) * rate.rate);
 	}, 0);
 	return elapseWeighted / totalTaskHours;
 };
 
 if (DIAGONAL_SERIES) {
-	GH.BurndownChartModel.calculateSeries = function() {
+	GH.BurndownChartModel.calculateSeries = function () {
 
 		function calculateSeriesData(type, eventList, flatLinesEnds) {
 			eventList[type] = eventList[type] || [];
@@ -244,7 +243,7 @@ if (DIAGONAL_SERIES) {
 				while (lastFlatPoint < flatLinesEnds.length && flatLinesEnds[lastFlatPoint][0] < timeline[i].time) {
 					seriesItem.push([
 						flatLinesEnds[lastFlatPoint][0],
-						seriesItem[seriesItem.length-1][1]
+						seriesItem[seriesItem.length - 1][1]
 					]);
 					eventList[type].push({});
 					lastFlatPoint++;
@@ -260,7 +259,7 @@ if (DIAGONAL_SERIES) {
 			if (!timelineData.completeTime) {
 				seriesItem.push([
 					Math.max(timelineData.startTime, timelineData.now),
-					timeline[timeline.length-1].values[type]
+					timeline[timeline.length - 1].values[type]
 				]);
 			}
 
@@ -287,7 +286,7 @@ if (DIAGONAL_SERIES) {
 
 		var flatLinesEnds = gridLine.data.slice();
 		for (var i = flatLinesEnds.length - 1; i > 0; i--) {
-			if (flatLinesEnds[i][1] !== flatLinesEnds[i-1][1]) {
+			if (flatLinesEnds[i][1] !== flatLinesEnds[i - 1][1]) {
 				flatLinesEnds.splice(i, 1);
 			}
 		}
@@ -295,28 +294,26 @@ if (DIAGONAL_SERIES) {
 		if (GH.BurndownChartModel.isTimeTracking()) {
 			YAxis = Math.max(YAxis, timelineData.maxValues.timeSpent || 0);
 
-			series.push({id: "timeSpent",
-				data: calculateSeriesData("timeSpent", eventList, flatLinesEnds),
-				color: "#14892c",
-				label: "Time Spent"
+			series.push({id: 'timeSpent',
+				data: calculateSeriesData('timeSpent', eventList, flatLinesEnds),
+				color: '#14892c',
+				label: 'Time Spent'
 			});
 			
 		}
 
 		YAxis = Math.max(YAxis, timelineData.maxValues.estimate || 0);
-		series.push({id: "estimate",
-			data: calculateSeriesData("estimate", eventList, flatLinesEnds),
-			color: "#d04437",
-			label: "Remaining Values"
+		series.push({id: 'estimate',
+			data: calculateSeriesData('estimate', eventList, flatLinesEnds),
+			color: '#d04437',
+			label: 'Remaining Values'
 		});
-
 		
-		series.push({id: "markings",
+		series.push({id: 'markings',
 			color: GH.BurndownChartView.wallboardMode ? GH.ChartColors.nonWorkingDaysWallboard : GH.ChartColors.nonWorkingDays,
 			data: [],
-			label: "Non-Working Days"
+			label: 'Non-Working Days'
 		});
-
 
 		GH.BurndownChartModel.calculateYAxis(YAxis);
 		GH.BurndownChartModel.series = series;
@@ -328,7 +325,7 @@ if (DIAGONAL_SERIES) {
 function byProperty(prop) {
 	return function (obj) {
 		return obj[prop];
-	}
+	};
 }
 
 function numerically(a, b) {
@@ -337,15 +334,17 @@ function numerically(a, b) {
 
 function atMidnight(date, roundUp) {
 	var midnight;
-	if (date instanceof Date)
+	if (date instanceof Date) {
 		midnight = new Date(date.getTime());
-	else
+	} else {
 		midnight = new Date(date);
+	}
 
-	if (roundUp)
+	if (roundUp) {
 		midnight.setHours(24 * Math.ceil(midnight.getHours() / 24), 0, 0, 0);
-	else
+	} else {
 		midnight.setHours(0, 0, 0, 0);
+	}
 
 	return midnight;
 }
