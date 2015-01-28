@@ -12,65 +12,63 @@ var MILLI_PER_MIN = 1000 * 60;
 var DIAGONAL_SERIES = true;
 var REMOVE_NON_PROGRESSING_POINTS = true;
 
+var am = 0;
+var pm = 12;
+
+// just assumes work is mon-fri, 9 to 5.
+// won't be as accurate as specifying each employee's hours,
+// but will be better than jira's default
+var defaultEmployeeHours = [
+	{}, // sun
+	{   // mon
+		Work:    [{clockIn:  9+am, clockOut:  5+pm}]
+	},
+	{   // tue
+		Work:    [{clockIn:  9+am, clockOut:  5+pm}]
+	},
+	{   // wed
+		Work:    [{clockIn:  9+am, clockOut:  5+pm}]
+	},
+	{   // thurs
+		Work:    [{clockIn:  9+am, clockOut:  5+pm}]
+	},
+	{   // fri
+		Work:    [{clockIn:  9+am, clockOut:  5+pm}]
+	},
+	{} // sat
+];
+
 var employeeHours = [
 	{}, // sun
 	{   // mon
-		Jon: [{clockIn: 13, clockOut: 17}],
-		Erik: [{clockIn: 16.5, clockOut: 18.5}],
-		Nathan: [{clockIn: 14, clockOut: 17}],
-		Teancum: [{clockIn: 12.5, clockOut: 13.5}]
+		Jon:     [{clockIn:  1+pm, clockOut:  5+pm}],
+		Nathan:  [{clockIn:  2+pm, clockOut:  5+pm}]
 	},
 	{   // tue
-		Jon: [{clockIn: 11, clockOut: 17}],
-		Erik: [{clockIn: 11, clockOut: 19}],
-		Nathan: [{clockIn: 11, clockOut: 15}],
-		Teancum: [{clockIn: 9, clockOut: 18}]
+		Jon:     [{clockIn: 11+am, clockOut:  5+pm}],
+		Nathan:  [{clockIn: 11+am, clockOut:  3+pm}],
+		Teancum: [{clockIn:  9+am, clockOut:  6+pm}]
 	},
 	{   // wed
-		Jon: [{clockIn: 13, clockOut: 17}],
-		Erik: [{clockIn: 13, clockOut: 19}],
-		Nathan: [{clockIn: 14, clockOut: 17}],
-		Teancum: [{clockIn: 12.5, clockOut: 13.5}]
+		Jon:     [{clockIn:  1+pm, clockOut:  5+pm}],
+		Nathan:  [{clockIn:  2+pm, clockOut:  5+pm}]
 	},
 	{   // thurs
-		Jon: [{clockIn: 11, clockOut: 17}],
-		Erik: [{clockIn: 11, clockOut: 19}],
-		Nathan: [{clockIn: 11, clockOut: 17}],
-		Teancum: [{clockIn: 9, clockOut: 18}]
+		Jon:     [{clockIn: 11+am, clockOut:  5+pm}],
+		Nathan:  [{clockIn: 11+am, clockOut:  5+pm}],
+		Teancum: [{clockIn:  9+am, clockOut:  4+pm}]
 	},
 	{   // fri
-		Nathan: [{clockIn: 12.5, clockOut: 17}]
+		Nathan:  [{clockIn: 12.5+am, clockOut:  5+pm}]
 	},
-	{}, // sat
-	{}, // sun
-	{   // mon
-		Jon: [{clockIn: 13, clockOut: 17}],
-		Nathan: [{clockIn: 14, clockOut: 17}],
-		Teancum: [{clockIn: 12.5, clockOut: 13.5}]
-	},
-	{   // tue
-		Jon: [{clockIn: 11, clockOut: 17}],
-		Erik: [{clockIn: 11, clockOut: 19}],
-		Nathan: [{clockIn: 11, clockOut: 15}],
-		Teancum: [{clockIn: 9, clockOut: 18}]
-	},
-	{   // wed
-		Erik: [{clockIn: 14, clockOut: 16}],
-		Nathan: [{clockIn: 14, clockOut: 17}],
-		Teancum: [{clockIn: 12.5, clockOut: 13.5}]
-	},
-	{   // thurs
-		Erik: [{clockIn: 11, clockOut: 19}],
-		Nathan: [{clockIn: 11, clockOut: 17}],
-		Teancum: [{clockIn: 9, clockOut: 18}]
-	},
-	{   // fri
-		Nathan: [{clockIn: 12.5, clockOut: 17}]
-	},
-	{}  // sat
-	
+	{} // sat
 ];
 
+var exceptions = {
+	
+};
+
+employeeHours = defaultEmployeeHours;
 
 var compiledEmployeeHours = employeeHours.map(function (day) {
 
