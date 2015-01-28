@@ -10,6 +10,7 @@
 var MILLI_PER_DAY = 1000 * 60 * 60 * 24;
 var MILLI_PER_MIN = 1000 * 60;
 var DIAGONAL_SERIES = true;
+var REMOVE_NON_PROGRESSING_POINTS = true;
 
 var employeeHours = [
 	{}, // sun
@@ -248,12 +249,13 @@ if (DIAGONAL_SERIES) {
 					eventList[type].push({});
 					lastFlatPoint++;
 				}
-
-				seriesItem.push([
-					timeline[i].time,
-					timeline[i].values[type]
-				]);
-				eventList[type].push(timeline[i]);
+				if (!REMOVE_NON_PROGRESSING_POINTS || i === 0 || timeline[i].values[type] != timeline[i-1].values[type]) {
+					seriesItem.push([
+						timeline[i].time,
+						timeline[i].values[type]
+					]);
+					eventList[type].push(timeline[i]);
+				}
 			}
 
 			if (!timelineData.completeTime) {
